@@ -5,6 +5,7 @@ from utils.states import HEIGHT, WEIGHT, ACTIVITY_LEVEL, GENDER, YEARS_EXPERIENC
 from utils.calculations import compute_brm, parse_height, parse_weight, validate_activity, normalize_gender, parse_age
 from database.DataBase import save_user_to_db, get_user_by_id
 from utils import texts
+from Keyboards.keyboards import *
 
 
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -137,7 +138,7 @@ async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 Пол: {context.user_data['gender']}\n"
         f"🎂 Возраст: {context.user_data['years_experience']} лет\n"
         f"🎯 Цель: {context.user_data['goal']}",
-        reply_markup=reply_markup
+        reply_markup=main_keyboard
     )
 
     try:
