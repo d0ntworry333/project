@@ -6,7 +6,7 @@ from database.DataBase import init_db, get_user_by_id
 from anketa_launcher import register_anketa_handlers
 
 
-# Логирование
+# Логирование  
 logging.basicConfig(
 	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 	level=logging.INFO
