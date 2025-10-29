@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Environment files
+.env
+
+# PyCharm / IDE
+.idea/
+.vscode/
+
+# Local settings & artifacts
+*.log
+*.sqlite3
+*.db
+reports/
+
+# OS-specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
