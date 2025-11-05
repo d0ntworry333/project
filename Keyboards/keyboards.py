@@ -18,7 +18,13 @@ anketa_keyboard = [
 
 training_keyboard = [
     [KeyboardButton("📋 Упражнения дня"), KeyboardButton("📅 Расписание")],
-    [KeyboardButton("⏭️ Скип дня"), KeyboardButton("📊 Статус")],
-    [KeyboardButton("⏸️ Пропустить день (тест)"), KeyboardButton("⬅️ Предыдущая неделя")],
-    [KeyboardButton("➡️ Следующая неделя"), KeyboardButton("🏠 Главное меню")]
+    [KeyboardButton("✅ Я выполнил тренировку"), KeyboardButton("📊 Статус")],
+    [KeyboardButton("🧠 Техника"), KeyboardButton("🏠 Главное меню")],
+    [KeyboardButton("⬅️ Предыдущая неделя"), KeyboardButton("➡️ Следующая неделя")]
+]
+
+
+technique_keyboard = [
+    [KeyboardButton("руки"), KeyboardButton("спина")],
+    [KeyboardButton("ноги"), KeyboardButton("return")]
 ]

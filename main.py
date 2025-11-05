@@ -24,7 +24,7 @@ from handlers.training_check import (
 )
 from utils.states import MENU_STATE
 
-# Логирование
+# Логирование  
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
@@ -45,15 +45,16 @@ async def handle_training_response(update: Update, context: ContextTypes.DEFAULT
     text = update.message.text.lower()
     check_step = context.user_data.get('check_step')
     
-    # Обработка чека
-    if check_step == 'check01':
+    # Обработка чека - проверяем ПЕРВЫМ, чтобы перехватить все сообщения
+    if check_step == 'check02':
+        # Для check02 принимаем ЛЮБОЕ сообщение как ответ
+        await handle_check02_response(update, context, update.message.text)
+        return None
+    elif check_step == 'check01':
         if "да" in text or "✅" in text:
             await handle_check_response(update, context, True)
         elif "нет" in text or "❌" in text:
             await handle_check_response(update, context, False)
-        return None
-    elif check_step == 'check02':
-        await handle_check02_response(update, context, update.message.text)
         return None
     
     # Обработка ответов о тренировке
@@ -84,14 +85,26 @@ def main():
     register_anketa_handlers(application)
     register_training_handlers(application)
     
-    # Добавляем обработчик ответов о тренировках (должен быть перед навигацией)
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND & filters.Regex(r"(✅|❌|Да|Нет|Здоров|Болит рука|Болит спина|Болят ноги)"),
-        handle_training_response
-    ))
+    # Добавляем универсальный обработчик для всех текстовых сообщений
+    # Он проверяет наличие активных процессов (check_step, тренировки) и обрабатывает соответственно
+    async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обрабатывает все сообщения, проверяя наличие активных процессов"""
+        check_step = context.user_data.get('check_step')
+        
+        # Если есть активный check_step, обрабатываем через handle_training_response
+        if check_step:
+            return await handle_training_response(update, context)
+        
+        # Проверяем, не является ли это ответом на тренировку или боль
+        text = update.message.text.lower()
+        if any(pattern in text for pattern in ["да, выполнил", "нет, не выполнил", "здоров", "болит рука", "болит спина", "болят ноги"]):
+            return await handle_training_response(update, context)
+        
+        # Иначе передаем в обычную навигацию
+        return await handle_navigation(update, context)
     
-    # Добавляем обработчик навигации для текстовых сообщений
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_navigation))
+    # Добавляем универсальный обработчик для всех текстовых сообщений (включая числа)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
     
     # Настраиваем планировщик задач
     scheduler = AsyncIOScheduler()

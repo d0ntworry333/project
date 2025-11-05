@@ -409,8 +409,13 @@ async def handle_check_response(update: Update, context: ContextTypes.DEFAULT_TY
     session_id = context.user_data.get('session_id')
     
     if not session_id:
-        await update.message.reply_text("❌ Ошибка обработки")
-        return
+        # Если нет session_id в контексте, пытаемся получить из сессии
+        session = get_active_training_session(user.id)
+        if session:
+            session_id = session[0]
+        else:
+            await update.message.reply_text("❌ Ошибка обработки")
+            return
     
     if check_result:
         # check01 пройден - переходим к check02
@@ -441,57 +446,47 @@ async def handle_check_response(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 async def handle_check02_response(update: Update, context: ContextTypes.DEFAULT_TYPE, calories: str):
-    """Обрабатывает ответ на check02 (калорийность)"""
+    """ВРЕМЕННАЯ ЗАПЛАТКА: Обрабатывает ответ на check02 (калорийность) - принимает любое значение"""
     user = update.message.from_user
     session_id = context.user_data.get('session_id')
     
     if not session_id:
-        await update.message.reply_text("❌ Ошибка обработки")
+        # Если нет session_id в контексте, пытаемся получить из сессии
+        session = get_active_training_session(user.id)
+        if session:
+            session_id = session[0]
+        else:
+            await update.message.reply_text("❌ Ошибка обработки")
+            return
+    
+    # Получаем текущую сессию для определения недели
+    session = get_active_training_session(user.id)
+    if not session:
+        await update.message.reply_text("❌ Сессия не найдена")
         return
     
-    try:
-        calories_value = float(calories)
-        
-        # Получаем текущую сессию для определения недели
-        session = get_active_training_session(user.id)
-        if not session:
-            await update.message.reply_text("❌ Сессия не найдена")
-            return
-        
-        week_num = session[2]
-        
-        # check02 пройден
-        update_training_session(session_id, check02_passed=True)
-        
-        # Очищаем контекст
-        context.user_data.pop('check_step', None)
-        context.user_data.pop('session_id', None)
-        
-        if week_num == 2:
-            # После второй недели - оба чека пройдены
-            reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
-            await update.message.reply_text(
-                f"✅ Чек-лист 2 пройден!\n\n"
-                f"📊 Ваша средняя калорийность: {calories_value} ккал\n\n"
-                f"Все чеки пройдены! Неделя завершена.\n\n"
-                f"Для перехода к следующей неделе используйте кнопку 'Следующая неделя' в меню анкеты.",
-                reply_markup=reply_markup
-            )
-        else:
-            # Для недель после второй - check02 пройден
-            reply_markup = ReplyKeyboardMarkup(main_keyboard, resize_keyboard=True)
-            await update.message.reply_text(
-                f"✅ Чек-лист 2 пройден!\n\n"
-                f"📊 Ваша средняя калорийность: {calories_value} ккал\n\n"
-                f"Неделя завершена!\n\n"
-                f"Для перехода к следующей неделе используйте кнопку 'Следующая неделя' в меню анкеты.",
-                reply_markup=reply_markup
-            )
-            
-    except ValueError:
-        await update.message.reply_text(
-            "❌ Пожалуйста, введите число (например: 2000)"
-        )
+    week_num = session[2]
+    
+    # ВРЕМЕННАЯ ЗАПЛАТКА: принимаем любое значение (даже текст)
+    calories_text = calories.strip()
+    
+    # check02 пройден
+    update_training_session(session_id, check02_passed=True)
+    
+    # Очищаем контекст
+    context.user_data.pop('check_step', None)
+    context.user_data.pop('session_id', None)
+    
+    # Благодарим и пропускаем дальше
+    from Keyboards.keyboards import training_keyboard
+    reply_markup = ReplyKeyboardMarkup(training_keyboard, resize_keyboard=True)
+    
+    await update.message.reply_text(
+        f"✅ Спасибо! Данные о калорийности приняты.\n\n"
+        f"📊 Введенное значение: {calories_text}\n\n"
+        f"Чек-лист 2 пройден! Неделя завершена.",
+        reply_markup=reply_markup
+    )
 
 
 async def reset_unanswered_sessions(application):

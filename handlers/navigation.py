@@ -1,10 +1,10 @@
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes
 
-from utils.states import MENU_STATE, MAIN_STATE, ANKETA_STATE
+from utils.states import MENU_STATE, MAIN_STATE, ANKETA_STATE, TRAINING_TECHNIQUE_STATE
 from Keyboards.keyboards import menu_keyboard, main_keyboard, anketa_keyboard
 from database.DataBase import get_user_by_id, get_active_training_session, advance_to_next_week, update_training_session
-from utils.texts import text01, text02, text03
+from utils.texts import text01, text02, text03, text_technique_arms, text_technique_body, text_technique_legs
 
 
 async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -75,6 +75,21 @@ async def show_goal_and_diet(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return MAIN_STATE
 
 
+async def show_training_technique_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показывает меню с техникой выполнения упражнений"""
+    from Keyboards.keyboards import technique_keyboard
+
+    context.user_data['current_state'] = TRAINING_TECHNIQUE_STATE
+    reply_markup = ReplyKeyboardMarkup(technique_keyboard, resize_keyboard=True)
+
+    await update.message.reply_text(
+        "🧠 Раздел техники\n\n"
+        "Выберите группу упражнений, чтобы получить рекомендации по технике.",
+        reply_markup=reply_markup
+    )
+    return TRAINING_TECHNIQUE_STATE
+
+
 async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обрабатывает навигацию между состояниями"""
     text = update.message.text.lower()
@@ -96,6 +111,16 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "return":
         if current_state == ANKETA_STATE:
             return await show_main(update, context)
+        elif current_state == TRAINING_TECHNIQUE_STATE:
+            from Keyboards.keyboards import training_keyboard
+
+            context.user_data['current_state'] = MAIN_STATE
+            reply_markup = ReplyKeyboardMarkup(training_keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                "🏋️ Возвращаемся в меню тренировочного процесса.",
+                reply_markup=reply_markup
+            )
+            return MAIN_STATE
     
     elif text == "main menu":
         if current_state == MAIN_STATE:
@@ -128,6 +153,43 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Если нет активной сессии, начинаем выбор дней
                 await start_training_process(update, context)
             return current_state
+
+    elif text == "🧠 техника":
+        if current_state == MAIN_STATE:
+            return await show_training_technique_menu(update, context)
+
+    elif text == "руки":
+        if current_state == TRAINING_TECHNIQUE_STATE:
+            from Keyboards.keyboards import technique_keyboard
+
+            reply_markup = ReplyKeyboardMarkup(technique_keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                text_technique_arms,
+                reply_markup=reply_markup
+            )
+            return TRAINING_TECHNIQUE_STATE
+
+    elif text == "спина":
+        if current_state == TRAINING_TECHNIQUE_STATE:
+            from Keyboards.keyboards import technique_keyboard
+
+            reply_markup = ReplyKeyboardMarkup(technique_keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                text_technique_body,
+                reply_markup=reply_markup
+            )
+            return TRAINING_TECHNIQUE_STATE
+
+    elif text == "ноги":
+        if current_state == TRAINING_TECHNIQUE_STATE:
+            from Keyboards.keyboards import technique_keyboard
+
+            reply_markup = ReplyKeyboardMarkup(technique_keyboard, resize_keyboard=True)
+            await update.message.reply_text(
+                text_technique_legs,
+                reply_markup=reply_markup
+            )
+            return TRAINING_TECHNIQUE_STATE
     
     elif text == "/achievements":
         if current_state == MENU_STATE:
@@ -148,7 +210,7 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "📅 расписание":
         return await show_training_schedule(update, context)
     
-    elif text == "⏭️ скип дня":
+    elif text == "✅ я выполнил тренировку":
         return await handle_skip_day_button(update, context)
     
     elif text == "📊 статус":
@@ -156,9 +218,6 @@ async def handle_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif text == "🏠 главное меню":
         return await show_main(update, context)
-    
-    elif text == "⏸️ пропустить день (тест)":
-        return await handle_skip_day_missed(update, context)
     
     elif text == "⬅️ предыдущая неделя":
         return await handle_previous_week(update, context)
@@ -248,7 +307,7 @@ async def handle_next_week(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_today_exercises(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показывает упражнения для текущего дня"""
+    """Показывает упражнения для текущего дня в зависимости от недели и дня"""
     user = update.message.from_user
     session = get_active_training_session(user.id)
     
@@ -256,21 +315,33 @@ async def show_today_exercises(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ У вас нет активной тренировочной сессии.")
         return
     
-    current_day = session[4]
-    week_num = session[2]
+    current_day = session[4]  # 0, 1 или 2
+    week_num = session[2]  # номер недели (1, 2, 3...)
     
     # Определяем тип тренировки по дню
     training_types = ["День 1: Грудь, Плечи, Трицепс", "День 2: Спина, Бицепс", "День 3: Ноги и Кор"]
     training_type = training_types[current_day]
     
-    # Показываем упражнения (пока используем text04)
-    from utils.texts import text04
+    # Получаем упражнения напрямую из переменных day## (где первый # - неделя, второй # - день)
+    import utils.texts as texts_module
+    
+    # Формируем имя переменной: day{неделя}{день}
+    day_variable_name = f"day{week_num}{current_day + 1}"
+    
+    # Получаем значение переменной напрямую
+    exercises_text = getattr(texts_module, day_variable_name, None)
+    
+    # Если переменная не найдена, показываем сообщение об ошибке
+    if exercises_text is None:
+        exercises_text = f"❌ Не удалось загрузить упражнения для недели {week_num}, день {current_day + 1}"
+    
+    # Выводим упражнения (включая заглушки типа "day12")
     from Keyboards.keyboards import training_keyboard
     reply_markup = ReplyKeyboardMarkup(training_keyboard, resize_keyboard=True)
     
     await update.message.reply_text(
         f"📋 {training_type} (Неделя {week_num})\n\n"
-        f"{text04}",
+        f"{exercises_text}",
         reply_markup=reply_markup
     )
 
@@ -305,7 +376,10 @@ async def show_training_schedule(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def handle_skip_day_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обрабатывает кнопку скипа дня"""
+    """Обрабатывает кнопку "Я выполнил тренировку" - работает как реальное выполнение тренировки"""
+    from datetime import datetime
+    from database.DataBase import add_training_log
+    
     user = update.message.from_user
     session = get_active_training_session(user.id)
     
@@ -315,18 +389,31 @@ async def handle_skip_day_button(update: Update, context: ContextTypes.DEFAULT_T
     
     session_id = session[0]
     current_day = session[4]
-    completed_days = session[5]
     
-    # Увеличиваем счетчики
-    new_completed_days = completed_days + 1
-    new_current_day = (current_day + 1) % 3
+    # Определяем тип тренировки по текущему дню
+    training_types = ["День 1: Грудь, Плечи, Трицепс", "День 2: Спина, Бицепс", "День 3: Ноги и Кор"]
+    training_type = training_types[current_day]
     
-    # Обновляем сессию
-    update_training_session(
-        session_id,
-        current_day=new_current_day,
-        completed_days=new_completed_days
-    )
+    # Создаем запись в логе тренировок (completed=True, так как пользователь выполнил)
+    today = datetime.now().date()
+    today_str = today.strftime('%Y-%m-%d')
+    
+    # Добавляем запись в лог
+    add_training_log(user.id, session_id, today_str, training_type, True)
+    
+    # Получаем ID созданной записи для дальнейшей обработки
+    # Ищем последнюю запись для этого пользователя и сессии за сегодня
+    import sqlite3
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM training_log 
+        WHERE user_id = ? AND session_id = ? AND training_date = ?
+        ORDER BY created_at DESC 
+        LIMIT 1
+    ''', (user.id, session_id, today_str))
+    training_log = cursor.fetchone()
+    conn.close()
     
     # Спрашиваем о боли (как при реальном выполнении)
     keyboard = [
@@ -336,13 +423,15 @@ async def handle_skip_day_button(update: Update, context: ContextTypes.DEFAULT_T
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
     await update.message.reply_text(
-        "💪 День выполнен!\n\n"
+        "💪 Отлично! Выполнили тренировку!\n\n"
         "Болело ли что-то во время тренировки?",
         reply_markup=reply_markup
     )
     
     # Сохраняем в контексте для обработки ответа о боли
-    context.user_data['training_log_id'] = 'skip_day'  # Маркер для скипа
+    if training_log:
+        context.user_data['training_log_id'] = training_log[0]  # Реальный ID записи
+    context.user_data['training_type'] = training_type
     context.user_data['session_id'] = session_id
 
 
